@@ -27,4 +27,16 @@ public interface EventRepository extends JpaRepository<Event, Long> {
            AND available_tickets >= :qty
         """, nativeQuery = true)
     int reserveTickets(@Param("id") Long id, @Param("qty") int qty);
+
+    @Modifying
+    @Query("""
+    UPDATE Event e
+    SET e.availableTickets = e.availableTickets - :quantity
+    WHERE e.id = :eventId
+      AND e.availableTickets >= :quantity
+""")
+    int decreaseTickets(
+            @Param("eventId") Long eventId,
+            @Param("quantity") int quantity
+    );
 }

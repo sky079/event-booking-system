@@ -3,9 +3,11 @@ package com.sumit.eventbooking.service.impl;
 import com.sumit.eventbooking.common.ApiException;
 import com.sumit.eventbooking.entity.booking.Booking;
 import com.sumit.eventbooking.entity.event.Event;
+import com.sumit.eventbooking.model.user.User;
 import com.sumit.eventbooking.repository.BookingRepository;
 import com.sumit.eventbooking.repository.EventRepository;
 import com.sumit.eventbooking.model.event.EventStatus;
+import com.sumit.eventbooking.repository.UserRepository;
 import com.sumit.eventbooking.service.BookingService;
 import com.sumit.eventbooking.service.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class BookingServiceV1 implements BookingService {
     private final EventRepository events;
     private final BookingRepository bookings;
     private final EmailService emailService;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -50,9 +53,11 @@ public class BookingServiceV1 implements BookingService {
         events.save(event);
 
         Booking booking = bookings.save(Booking.confirmed(customerId, eventId, quantity, null)); // key ignored in v1
-
+        User customer = userRepository.findById(booking.getCustomerId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Customer not found: " + booking.getCustomerId()));
         // Step 6: the confirmation email job is enqueued right here, inside the transaction (the naive way).
-        emailService.sendEmail("sumitydv079@gmail.com","Booking Test", "Testing Resend");
+        emailService.sendEmail(customer.getEmail(),"Booking Test", "Testing Resend");
         return booking;
     }
 }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 public class EmailServiceImpl implements EmailService {
     private final Resend resend;
 
-    @Value("${resend.from-email:onboarding@resend.dev3}")
+    @Value("${resend.from-email:onboarding@resend.dev}")
     private String fromEmail;
 
     public EmailServiceImpl(@Value("${resend.api-key}") String apiKey) {
