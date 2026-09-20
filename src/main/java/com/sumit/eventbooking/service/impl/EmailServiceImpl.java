@@ -35,7 +35,7 @@ public class EmailServiceImpl implements EmailService {
                 .build();
 
         try {
-            resend.emails().send(params);
+           // resend.emails().send(params);
         } catch (Exception e) {
             throw new RuntimeException("Failed to send booking confirmation email", e);
         }
@@ -60,7 +60,7 @@ public class EmailServiceImpl implements EmailService {
                 .build();
 
         try {
-            resend.emails().send(params);
+            //resend.emails().send(params);
         } catch (Exception e) {
             throw new RuntimeException("Failed to send event update email", e);
         }

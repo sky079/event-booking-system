@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
 @Tag(name = "Events", description = "Event management APIs")
+@SecurityRequirement(name = "bearerAuth")
 public class EventController {
 
     private final EventService service;
