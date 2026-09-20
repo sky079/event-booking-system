@@ -40,4 +40,30 @@ public class EmailServiceImpl implements EmailService {
             throw new RuntimeException("Failed to send booking confirmation email", e);
         }
     }
+
+    @Override
+    public void sendEventUpdateEmail(
+            String toEmail,
+            String eventName,
+            String changes) {
+
+        CreateEmailOptions params = CreateEmailOptions.builder()
+                .from(fromEmail)
+                .to(toEmail)
+                .subject("Event Updated - " + eventName)
+                .html(
+                        "<h2>Event Updated</h2>" +
+                                "<p>An event you booked has been updated.</p>" +
+                                "<p><strong>Event:</strong> " + eventName + "</p>" +
+                                "<p><strong>Changes:</strong> " + changes + "</p>"
+                )
+                .build();
+
+        try {
+            resend.emails().send(params);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send event update email", e);
+        }
+    }
+
 }

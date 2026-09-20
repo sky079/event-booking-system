@@ -1,0 +1,1070 @@
+openapi: 3.0.3
+
+info:
+  title: Event Booking System API
+  description: |
+    REST API for an Event Booking System.
+
+    Roles:
+    - CUSTOMER: Can browse events and create/view their own bookings.
+    - ORGANIZER: Can create, update, cancel, and manage their own events.
+
+    Authentication:
+    Most protected endpoints require a JWT obtained from the login endpoint.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local server
+
+tags:
+  - name: Health
+    description: Application health
+  - name: Authentication
+    description: Registration and login
+  - name: Events
+    description: Event management and browsing
+  - name: Bookings
+    description: Customer bookings
+
+paths:
+
+  # ============================================================
+  # HEALTH
+  # ============================================================
+
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Check application health
+      description: Returns a simple message confirming that the application is running.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Application is running
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Event Booking System is running
+
+
+  # ============================================================
+  # AUTHENTICATION
+  # ============================================================
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new CUSTOMER or ORGANIZER account.
+      operationId: register
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              customer:
+                summary: Register as Customer
+                value:
+                  name: John Customer
+                  email: customer@example.com
+                  password: Password@123
+                  role: CUSTOMER
+
+              organizer:
+                summary: Register as Organizer
+                value:
+                  name: Jane Organizer
+                  email: organizer@example.com
+                  password: Password@123
+                  role: ORGANIZER
+
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9.demo.jwt.token
+                userId: 1
+                name: John Customer
+                role: CUSTOMER
+
+        '400':
+          description: Invalid request or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                message: Validation failed
+
+        '409':
+          description: User already exists
+
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      description: Authenticates a user and returns a JWT token.
+      operationId: login
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: customer@example.com
+              password: Password@123
+
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9.demo.jwt.token
+                userId: 1
+                name: John Customer
+                role: CUSTOMER
+
+        '400':
+          description: Invalid request or validation failure
+
+        '401':
+          description: Invalid email or password
+
+
+  # ============================================================
+  # EVENTS
+  # ============================================================
+
+  /api/events:
+    post:
+      tags:
+        - Events
+      summary: Create an event
+      description: |
+        Creates a new event.
+
+        Requires ORGANIZER role.
+      operationId: createEvent
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreateRequest'
+            example:
+              name: Java Backend Workshop
+              description: Hands-on Spring Boot and Java backend workshop.
+              location: Bangalore Tech Park
+              startTime: '2026-10-15T10:00:00Z'
+              endTime: '2026-10-15T16:00:00Z'
+              totalTickets: 100
+
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+              example:
+                id: 101
+                organizerId: 2
+                name: Java Backend Workshop
+                description: Hands-on Spring Boot and Java backend workshop.
+                location: Bangalore Tech Park
+                startTime: '2026-10-15T10:00:00Z'
+                endTime: '2026-10-15T16:00:00Z'
+                totalTickets: 100
+                availableTickets: 100
+                status: ACTIVE
+                createdAt: '2026-09-20T09:00:00Z'
+                updatedAt: '2026-09-20T09:00:00Z'
+
+        '400':
+          description: Invalid event data
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: ORGANIZER role required
+
+
+    get:
+      tags:
+        - Events
+      summary: List upcoming events
+      description: Returns a paginated list of upcoming events.
+      operationId: listEvents
+
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+
+      responses:
+        '200':
+          description: Events retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPageResponse'
+              example:
+                items:
+                  - id: 101
+                    organizerId: 2
+                    name: Java Backend Workshop
+                    description: Hands-on Spring Boot and Java backend workshop.
+                    location: Bangalore Tech Park
+                    startTime: '2026-10-15T10:00:00Z'
+                    endTime: '2026-10-15T16:00:00Z'
+                    totalTickets: 100
+                    availableTickets: 95
+                    status: ACTIVE
+                    createdAt: '2026-09-20T09:00:00Z'
+                    updatedAt: '2026-09-20T09:00:00Z'
+                page: 0
+                size: 20
+                totalItems: 1
+                totalPages: 1
+
+
+  /api/events/mine:
+    get:
+      tags:
+        - Events
+      summary: List my events
+      description: Returns events created by the authenticated organizer.
+      operationId: listMyEvents
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+
+      responses:
+        '200':
+          description: Organizer events retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPageResponse'
+              example:
+                items:
+                  - id: 101
+                    organizerId: 2
+                    name: Java Backend Workshop
+                    description: Hands-on Spring Boot and Java backend workshop.
+                    location: Bangalore Tech Park
+                    startTime: '2026-10-15T10:00:00Z'
+                    endTime: '2026-10-15T16:00:00Z'
+                    totalTickets: 100
+                    availableTickets: 95
+                    status: ACTIVE
+                    createdAt: '2026-09-20T09:00:00Z'
+                    updatedAt: '2026-09-20T09:00:00Z'
+                page: 0
+                size: 20
+                totalItems: 1
+                totalPages: 1
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: ORGANIZER role required
+
+
+  /api/events/{id}:
+    get:
+      tags:
+        - Events
+      summary: Get event by ID
+      description: Returns details of a specific event.
+      operationId: getEvent
+
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+
+      responses:
+        '200':
+          description: Event retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+              example:
+                id: 101
+                organizerId: 2
+                name: Java Backend Workshop
+                description: Hands-on Spring Boot and Java backend workshop.
+                location: Bangalore Tech Park
+                startTime: '2026-10-15T10:00:00Z'
+                endTime: '2026-10-15T16:00:00Z'
+                totalTickets: 100
+                availableTickets: 95
+                status: ACTIVE
+                createdAt: '2026-09-20T09:00:00Z'
+                updatedAt: '2026-09-20T09:00:00Z'
+
+        '404':
+          description: Event not found
+
+
+    put:
+      tags:
+        - Events
+      summary: Update an event
+      description: |
+        Updates an event owned by the authenticated organizer.
+
+        Requires ORGANIZER role.
+      operationId: updateEvent
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventUpdateRequest'
+            example:
+              name: Advanced Java Backend Workshop
+              description: Advanced Spring Boot, JPA and REST API workshop.
+              location: Bangalore Tech Park
+              startTime: '2026-10-15T11:00:00Z'
+              endTime: '2026-10-15T17:00:00Z'
+
+      responses:
+        '200':
+          description: Event updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+              example:
+                id: 101
+                organizerId: 2
+                name: Advanced Java Backend Workshop
+                description: Advanced Spring Boot, JPA and REST API workshop.
+                location: Bangalore Tech Park
+                startTime: '2026-10-15T11:00:00Z'
+                endTime: '2026-10-15T17:00:00Z'
+                totalTickets: 100
+                availableTickets: 95
+                status: ACTIVE
+                createdAt: '2026-09-20T09:00:00Z'
+                updatedAt: '2026-09-20T10:00:00Z'
+
+        '400':
+          description: Invalid event data
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: ORGANIZER role required
+
+        '404':
+          description: Event not found
+
+
+    delete:
+      tags:
+        - Events
+      summary: Cancel an event
+      description: |
+        Cancels an event owned by the authenticated organizer.
+
+        Requires ORGANIZER role.
+      operationId: cancelEvent
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+
+      responses:
+        '204':
+          description: Event cancelled successfully
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: ORGANIZER role required
+
+        '404':
+          description: Event not found
+
+
+  /api/events/{id}/bookings:
+    get:
+      tags:
+        - Events
+      summary: List bookings for an event
+      description: |
+        Returns bookings for an event owned by the authenticated organizer.
+
+        Requires ORGANIZER role.
+      operationId: getEventBookings
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+
+      responses:
+        '200':
+          description: Event bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingPageResponse'
+              example:
+                items:
+                  - id: 501
+                    eventId: 101
+                    customerId: 1
+                    quantity: 5
+                    status: CONFIRMED
+                    createdAt: '2026-09-20T10:30:00Z'
+                page: 0
+                size: 20
+                totalItems: 1
+                totalPages: 1
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: ORGANIZER role required
+
+        '404':
+          description: Event not found
+
+
+  /api/events/{id}/stats:
+    get:
+      tags:
+        - Events
+      summary: Get event statistics
+      description: |
+        Returns ticket availability and booking statistics for an event.
+
+        Requires ORGANIZER role.
+      operationId: getEventStats
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+
+      responses:
+        '200':
+          description: Event statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventStats'
+              example:
+                eventId: 101
+                totalTickets: 100
+                availableTickets: 95
+                confirmedTickets: 5
+                oversold: false
+                consistent: true
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: ORGANIZER role required
+
+        '404':
+          description: Event not found
+
+
+  # ============================================================
+  # BOOKINGS
+  # ============================================================
+
+  /api/events/{eventId}/bookings:
+    post:
+      tags:
+        - Bookings
+      summary: Book tickets
+      description: |
+        Creates a booking for the authenticated customer.
+
+        Requires CUSTOMER role.
+
+        An optional Idempotency-Key can be supplied to safely retry
+        the same booking request without creating duplicate bookings.
+      operationId: createBooking
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: ID of the event
+          schema:
+            type: integer
+            format: int64
+            example: 101
+
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: |
+            Unique key used to make the booking request idempotent.
+            Reusing the same key prevents duplicate booking creation.
+          schema:
+            type: string
+            example: booking-101-customer-1-001
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+            example:
+              quantity: 5
+
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+              example:
+                id: 501
+                eventId: 101
+                customerId: 1
+                quantity: 5
+                status: CONFIRMED
+                createdAt: '2026-09-20T10:30:00Z'
+
+        '400':
+          description: Invalid booking request
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: CUSTOMER role required
+
+        '404':
+          description: Event not found
+
+        '409':
+          description: Not enough tickets available or booking conflict
+
+
+  /api/bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get my bookings
+      description: Returns bookings belonging to the authenticated customer.
+      operationId: getMyBookings
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+
+      responses:
+        '200':
+          description: Bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingPageResponse'
+              example:
+                items:
+                  - id: 501
+                    eventId: 101
+                    customerId: 1
+                    quantity: 5
+                    status: CONFIRMED
+                    createdAt: '2026-09-20T10:30:00Z'
+                page: 0
+                size: 20
+                totalItems: 1
+                totalPages: 1
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: CUSTOMER role required
+
+
+  /api/bookings/{id}:
+    get:
+      tags:
+        - Bookings
+      summary: Get my booking by ID
+      description: Returns a booking belonging to the authenticated customer.
+      operationId: getMyBooking
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Booking ID
+          schema:
+            type: integer
+            format: int64
+            example: 501
+
+      responses:
+        '200':
+          description: Booking retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+              example:
+                id: 501
+                eventId: 101
+                customerId: 1
+                quantity: 5
+                status: CONFIRMED
+                createdAt: '2026-09-20T10:30:00Z'
+
+        '401':
+          description: Authentication required
+
+        '403':
+          description: CUSTOMER role required
+
+        '404':
+          description: Booking not found
+
+
+# ==============================================================
+# COMPONENTS
+# ==============================================================
+
+components:
+
+  # ------------------------------------------------------------
+  # SECURITY
+  # ------------------------------------------------------------
+
+  securitySchemes:
+
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Enter the JWT token returned by /api/auth/login.
+
+        Example:
+        Bearer eyJhbGciOiJIUzI1NiJ9.demo.jwt.token
+
+
+  # ------------------------------------------------------------
+  # PARAMETERS
+  # ------------------------------------------------------------
+
+  parameters:
+
+    EventId:
+      name: id
+      in: path
+      required: true
+      description: Event ID
+      schema:
+        type: integer
+        format: int64
+        example: 101
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Page number, starting from 0
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+        example: 0
+
+    Size:
+      name: size
+      in: query
+      required: false
+      description: Number of records per page
+      schema:
+        type: integer
+        minimum: 1
+        default: 20
+        example: 20
+
+
+  # ------------------------------------------------------------
+  # SCHEMAS
+  # ------------------------------------------------------------
+
+  schemas:
+
+    # ==========================================================
+    # AUTH
+    # ==========================================================
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - role
+      properties:
+        name:
+          type: string
+          example: John Customer
+        email:
+          type: string
+          format: email
+          example: customer@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: Password@123
+        role:
+          $ref: '#/components/schemas/Role'
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          example: customer@example.com
+        password:
+          type: string
+          format: password
+          example: Password@123
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.demo.jwt.token
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: John Customer
+        role:
+          $ref: '#/components/schemas/Role'
+
+
+    # ==========================================================
+    # EVENT
+    # ==========================================================
+
+    EventCreateRequest:
+      type: object
+      required:
+        - name
+        - startTime
+        - totalTickets
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          example: Java Backend Workshop
+        description:
+          type: string
+          maxLength: 2000
+          example: Hands-on Spring Boot and Java backend workshop.
+        location:
+          type: string
+          maxLength: 200
+          example: Bangalore Tech Park
+        startTime:
+          type: string
+          format: date-time
+          example: '2026-10-15T10:00:00Z'
+        endTime:
+          type: string
+          format: date-time
+          example: '2026-10-15T16:00:00Z'
+        totalTickets:
+          type: integer
+          minimum: 1
+          maximum: 10000000
+          example: 100
+
+    EventUpdateRequest:
+      type: object
+      required:
+        - name
+        - startTime
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          example: Advanced Java Backend Workshop
+        description:
+          type: string
+          maxLength: 2000
+          example: Advanced Spring Boot, JPA and REST API workshop.
+        location:
+          type: string
+          maxLength: 200
+          example: Bangalore Tech Park
+        startTime:
+          type: string
+          format: date-time
+          example: '2026-10-15T11:00:00Z'
+        endTime:
+          type: string
+          format: date-time
+          example: '2026-10-15T17:00:00Z'
+
+    EventResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 101
+        organizerId:
+          type: integer
+          format: int64
+          example: 2
+        name:
+          type: string
+          example: Java Backend Workshop
+        description:
+          type: string
+          example: Hands-on Spring Boot and Java backend workshop.
+        location:
+          type: string
+          example: Bangalore Tech Park
+        startTime:
+          type: string
+          format: date-time
+          example: '2026-10-15T10:00:00Z'
+        endTime:
+          type: string
+          format: date-time
+          example: '2026-10-15T16:00:00Z'
+        totalTickets:
+          type: integer
+          example: 100
+        availableTickets:
+          type: integer
+          example: 95
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-09-20T09:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-09-20T09:00:00Z'
+
+    EventStats:
+      type: object
+      properties:
+        eventId:
+          type: integer
+          format: int64
+          example: 101
+        totalTickets:
+          type: integer
+          example: 100
+        availableTickets:
+          type: integer
+          example: 95
+        confirmedTickets:
+          type: integer
+          format: int64
+          example: 5
+        oversold:
+          type: boolean
+          example: false
+        consistent:
+          type: boolean
+          example: true
+
+    EventStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - CANCELLED
+      example: ACTIVE
+
+
+    # ==========================================================
+    # BOOKING
+    # ==========================================================
+
+    BookingRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 5
+
+    BookingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 501
+        eventId:
+          type: integer
+          format: int64
+          example: 101
+        customerId:
+          type: integer
+          format: int64
+          example: 1
+        quantity:
+          type: integer
+          example: 5
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-09-20T10:30:00Z'
+
+    BookingStatus:
+      type: string
+      enum:
+        - CONFIRMED
+        - CANCELLED
+      example: CONFIRMED
+
+
+    # ==========================================================
+    # PAGINATION
+    # ==========================================================
+
+    EventPageResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventResponse'
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 20
+        totalItems:
+          type: integer
+          format: int64
+          example: 1
+        totalPages:
+          type: integer
+          example: 1
+
+    BookingPageResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingResponse'
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 20
+        totalItems:
+          type: integer
+          format: int64
+          example: 1
+        totalPages:
+          type: integer
+          example: 1
+
+
+    # ==========================================================
+    # USER
+    # ==========================================================
+
+    Role:
+      type: string
+      enum:
+        - CUSTOMER
+        - ORGANIZER
+      example: CUSTOMER
+
+
+    # ==========================================================
+    # ERROR
+    # ==========================================================
+
+    ErrorResponse:
+      type: object
+      description: Generic error response. Actual fields depend on the application's exception handling.
+      properties:
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Validation failed

@@ -19,6 +19,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.sumit.eventbooking.jobs.EventUpdateEmailJob;
+import org.jobrunr.scheduling.JobScheduler;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,6 +35,8 @@ public class EventService {
 
     private final EventRepository events;
     private final BookingRepository bookings;
+    private final JobScheduler jobScheduler;
+    private final EventUpdateEmailJob eventUpdateEmailJob;
 
     @Transactional
     public Event create(Long organizerId, EventCreateRequest r) {
@@ -87,9 +93,31 @@ public class EventService {
         e.setDescription(description);
         e.setLocation(location);
         e.setStartTime(r.startTime());
+//        e.setEndTime(r.endTime());
+//        events.save(e);      // @DynamicUpdate: only the changed columns are written
+//        return new UpdateResult(e, String.join("; ", changes));
         e.setEndTime(r.endTime());
-        events.save(e);      // @DynamicUpdate: only the changed columns are written
-        return new UpdateResult(e, String.join("; ", changes));
+        events.save(e);
+
+        String changeSummary = String.join("; ", changes);
+
+        if (!changes.isEmpty()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            jobScheduler.enqueue(
+                                    () -> eventUpdateEmailJob.sendEventUpdate(
+                                            e.getId(),
+                                            changeSummary
+                                    )
+                            );
+                        }
+                    }
+            );
+        }
+
+        return new UpdateResult(e, changeSummary);
     }
 
     /** Soft delete. Returns true if the event was newly cancelled (false if it already was). */
