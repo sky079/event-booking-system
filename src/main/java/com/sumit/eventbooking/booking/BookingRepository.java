@@ -26,4 +26,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long sumConfirmedTickets(@Param("eventId") Long eventId, @Param("status") BookingStatus status);
 
     Page<Booking> findByEventId(Long eventId, Pageable pageable);
+
+    Page<Booking> findByCustomerId(Long customerId, Pageable pageable);
 }
